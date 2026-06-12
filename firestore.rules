@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net (Deny everything by default)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3 & 4: Primitive Definition and Gates
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Helper functions for validating each Entity shape:
+
+    function isValidUserProfile(data) {
+      return data.uid is string && data.uid.size() <= 128 && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.email is string && data.email.size() <= 256
+        && (data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 1024))
+        && (data.bio == null || (data.bio is string && data.bio.size() <= 500))
+        && data.createdAt == request.time;
+    }
+
+    function isValidIllustration(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 100
+        && data.description is string && data.description.size() <= 6000
+        && data.imageUrl is string && data.imageUrl.size() <= 1024
+        && data.category is string && data.category.size() <= 50
+        && (data.tags is list && data.tags.size() <= 10)
+        && data.creatorId is string && data.creatorId == request.auth.uid
+        && data.creatorName is string && data.creatorName.size() >= 1
+        && (data.creatorAvatar == null || (data.creatorAvatar is string && data.creatorAvatar.size() <= 1024))
+        && data.likesCount is int && data.likesCount >= 0
+        && data.createdAt == request.time;
+    }
+
+    function isValidLike(data) {
+      return data.userId is string && data.userId == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    function isValidComment(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.illustrationId is string && data.illustrationId.size() <= 128
+        && data.userId is string && data.userId == request.auth.uid
+        && data.userName is string && data.userName.size() >= 1
+        && (data.userAvatar == null || (data.userAvatar is string && data.userAvatar.size() <= 1024))
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    // Match blocks
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false; // Block user profile compilation scanning
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && userId == request.auth.uid 
+                    && incoming().uid == existing().uid
+                    && incoming().email == existing().email
+                    && incoming().createdAt == existing().createdAt
+                    && (
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'avatarUrl', 'bio'])
+                    );
+      allow delete: if false; // No direct self-destruction of profiles allowed
+    }
+
+    match /illustrations/{illustrationId} {
+      allow get: if isSignedIn() && isValidId(illustrationId);
+      allow list: if isSignedIn(); // Public gallery querying
+      allow create: if isSignedIn() && isValidId(illustrationId) && illustrationId == incoming().id && isValidIllustration(incoming());
+      
+      allow update: if isSignedIn() && isValidId(illustrationId) && (
+        // Action 1: Owner updates metadata details
+        (
+          incoming().creatorId == request.auth.uid &&
+          existing().creatorId == request.auth.uid &&
+          incoming().id == existing().id &&
+          incoming().imageUrl == existing().imageUrl &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().likesCount == existing().likesCount &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'tags'])
+        ) ||
+        // Action 2: Social interaction (Any authenticated user likes / unlikes)
+        (
+          incoming().creatorId == existing().creatorId &&
+          incoming().id == existing().id &&
+          incoming().imageUrl == existing().imageUrl &&
+          incoming().title == existing().title &&
+          incoming().description == existing().description &&
+          incoming().category == existing().category &&
+          incoming().createdAt == existing().createdAt &&
+          (incoming().likesCount - existing().likesCount == 1 || existing().likesCount - incoming().likesCount == 1) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])
+        )
+      );
+      
+      allow delete: if isSignedIn() && isValidId(illustrationId) && existing().creatorId == request.auth.uid;
+
+      // Likes subcollection
+      match /likes/{userId} {
+        allow get: if isSignedIn() && isValidId(userId);
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidLike(incoming());
+        allow delete: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(commentId);
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(commentId) && isValidComment(incoming());
+        allow update: if false; // Block client-side updates of comments
+        allow delete: if isSignedIn() && isValidId(commentId) && existing().userId == request.auth.uid;
+      }
+    }
+  }
+}

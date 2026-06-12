@@ -1,0 +1,6 @@
+{
+  "name": "Illustration Portfolio System",
+  "description": "A beautiful and modern illustration portfolio management web application featuring user systems, creation galleries, comment interactions, community likes, personal profiles, and AI art assistant inspiration generation and professional critiques.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

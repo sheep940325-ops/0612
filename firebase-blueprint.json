@@ -1,0 +1,162 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information stored upon registration.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique Firebase Authentication UID of the user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The registered email of the user."
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL to the user's avatar image."
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short self-description details."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The Firestore server timestamp of user registration."
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt"]
+    },
+    "Illustration": {
+      "title": "Illustration",
+      "description": "A single uploaded or created piece of illustration artwork.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique record identifier of the illustration."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the artwork."
+        },
+        "description": {
+          "type": "string",
+          "description": "The detailed explanation/inspiration behind the illustration."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "The preview URL of the illustration artwork."
+        },
+        "category": {
+          "type": "string",
+          "description": "Artwork category category (e.g. 奇幻, 角色設計, etc.)"
+        },
+        "tags": {
+          "type": "array",
+          "description": "User or AI suggested tags descriptive of the illustration."
+        },
+        "creatorId": {
+          "type": "string",
+          "description": "UID of the user who made the submission."
+        },
+        "creatorName": {
+          "type": "string",
+          "description": "The display name of the creator when published."
+        },
+        "creatorAvatar": {
+          "type": "string",
+          "description": "The photo url of the creator when active."
+        },
+        "likesCount": {
+          "type": "number",
+          "description": "Total number of likes given to this artwork."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when it was published."
+        }
+      },
+      "required": ["id", "title", "description", "imageUrl", "category", "creatorId", "creatorName", "likesCount", "createdAt"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "An interaction indicator showing a user liked this illustration.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the user who liked the post."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the action."
+        }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A text message posted beneath an illustration.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Comment unique document key."
+        },
+        "illustrationId": {
+          "type": "string",
+          "description": "Target ID of the illustration being reviewed."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The identity of the comment writer."
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the composer."
+        },
+        "userAvatar": {
+          "type": "string",
+          "description": "Avatar of the composer."
+        },
+        "content": {
+          "type": "string",
+          "description": "The text feedback values."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The moment commentary was submitted."
+        }
+      },
+      "required": ["id", "illustrationId", "userId", "userName", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Private and public user profile accounts indexed by their UID."
+    },
+    "/illustrations/{illustrationId}": {
+      "schema": "Illustration",
+      "description": "The core archive of creative designs shared across users."
+    },
+    "/illustrations/{illustrationId}/likes/{userId}": {
+      "schema": "Like",
+      "description": "Users who has clicked upvotes for the selected creative design."
+    },
+    "/illustrations/{illustrationId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Review board of threads matching creative works."
+    }
+  }
+}
